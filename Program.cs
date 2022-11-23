@@ -31,10 +31,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// These are equivalent... I had no idea
-Hashids _hashIds = new("URL Shortern", 5);
-var varHashes = new Hashids("URL Shortener", 5);
 
+Hashids _hashIds = new("URL Shortern", 5);
+
+/**
+ * POST for adding a new URL to the hashes
+ */
 app.MapPost("/add", (UrlInfo urlInfo, ILiteDatabase context) =>
     {
         if(urlInfo is null || string.IsNullOrEmpty(urlInfo.Url))
@@ -42,9 +44,8 @@ app.MapPost("/add", (UrlInfo urlInfo, ILiteDatabase context) =>
             return Results.BadRequest("Invalid object");
         }
 
-        ILiteCollection<UrlInfo> collection = context.GetCollection<UrlInfo>(BsonAutoId.Int32);
-
-        UrlInfo entry = collection.Query().Where(x => x.Url.Equals(urlInfo.Url)).FirstOrDefault();
+        var collection = context.GetCollection<UrlInfo>(BsonAutoId.Int32);
+        var entry = collection.Query().Where(x => x.Url.Equals(urlInfo.Url)).FirstOrDefault();
 
         if(entry is not null)
         {
@@ -52,21 +53,24 @@ app.MapPost("/add", (UrlInfo urlInfo, ILiteDatabase context) =>
         }
 
         BsonValue documentId = collection.Insert(urlInfo);
-        string encodedId = _hashIds.Encode(documentId);
+        var encodedId = _hashIds.Encode(documentId);
+
         return Results.Created(encodedId, encodedId);
     })
     .Produces<string>(StatusCodes.Status200OK)
     .Produces<string>(StatusCodes.Status201Created)
     .Produces(StatusCodes.Status400BadRequest);
 
+/**
+ * GET for returning a full URL for a given hash
+ */
 app.MapGet("/{shortUrl}", (string shortUrl, ILiteDatabase context) => 
     {
         int[] ids = _hashIds.Decode(shortUrl);
-        int tempId = ids[0];
 
-        ILiteCollection<UrlInfo> collection = context.GetCollection<UrlInfo>();
-
-        UrlInfo entry = collection.Query().Where(x => x.Id.Equals(tempId)).FirstOrDefault();
+        var tempId = ids[0];
+        var collection = context.GetCollection<UrlInfo>();
+        var entry = collection.Query().Where(x => x.Id.Equals(tempId)).FirstOrDefault();
 
         if(entry is not null) 
         {
@@ -78,4 +82,17 @@ app.MapGet("/{shortUrl}", (string shortUrl, ILiteDatabase context) =>
     .Produces<string>(StatusCodes.Status200OK)
     .Produces(StatusCodes.Status404NotFound);
 
+/**
+ * GET for returning all currently stored hash/URL combos
+ */
+app.MapGet("/", (ILiteDatabase context) => 
+    {
+        var collection = context.GetCollection<UrlInfo>();
+        var entries = collection.Query().ToList();
+        return Results.Ok(entries);
+    })
+    .Produces<List<UrlInfo>>(StatusCodes.Status200OK);
+
+
+// Run It!
 app.Run();

@@ -16,5 +16,5 @@ Hashids _hashIds = new("URL Shortern", 5);
 
 Is Equivalent to this:
 ``` 
-var varHashes = new Hashids("URL Shortener", 5); 
+var _hashIds = new Hashids("URL Shortener", 5); 
 ```
